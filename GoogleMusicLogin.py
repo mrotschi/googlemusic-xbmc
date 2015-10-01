@@ -4,7 +4,7 @@ from gmusicapi import Mobileclient
 
 class GoogleMusicLogin():
     def __init__(self):
-        self.gmusicapi = Mobileclient(debug_logging=False, validate=False, verify_ssl=False)
+        self.gmusicapi = Mobileclient(debug_logging=False, validate=False, verify_ssl=True)
 
     def checkCookie(self):
         # Remove cookie data if it is older then 7 days
@@ -46,7 +46,7 @@ class GoogleMusicLogin():
                 devices = self.gmusicapi.get_registered_devices()
                 if len(devices) == 10:
                     utils.log("WARNING: 10 devices already registered!")
-                utils.log(repr(devices))
+                utils.log('Devices: '+repr(devices))
                 for device in devices:
                     if device["type"] in ("ANDROID","PHONE","IOS"):
                         device_id = str(device["id"])
@@ -58,11 +58,6 @@ class GoogleMusicLogin():
                 if device_id.lower().startswith('0x'): device_id = device_id[2:]
                 utils.addon.setSetting('device_id', device_id)
                 utils.log('Found device_id: '+device_id)
-            else:
-                #utils.log('No device found, using default.')
-                #device_id = "333c60412226c96f"
-                raise Exception('No devices found, registered mobile device required!')
-
 
     def clearCookie(self):
         utils.addon.setSetting('logged_in-mobile', "")
@@ -82,7 +77,9 @@ class GoogleMusicLogin():
             password = base64.b64decode(utils.addon.getSetting('encpassword'))
 
             try:
-                self.gmusicapi.login(username, password)
+                self.gmusicapi.login(username, password, utils.addon.getSetting('device_id'))
+                if not self.gmusicapi.is_authenticated():
+                    self.gmusicapi.login(username, password, Mobileclient.FROM_MAC_ADDRESS)
             except Exception as e:
                 utils.log(repr(e))
 
@@ -99,6 +96,13 @@ class GoogleMusicLogin():
                 utils.addon.setSetting('logged_in-mobile', "1")
                 utils.addon.setSetting('authtoken-mobile', self.gmusicapi.session._authtoken)
                 utils.addon.setSetting('cookie-date', str(datetime.now()))
+                try:
+                    self.gmusicapi.get_listen_now()
+                    utils.addon.setSetting('all-access', "1")
+                except:
+                    utils.addon.setSetting('all-access', "0")
+
+
         else:
 
             utils.log("Loading auth from cache")

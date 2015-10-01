@@ -31,7 +31,7 @@ class GoogleMusicApi():
             songs = storage.getAutoPlaylistSongs(playlist_id)
             if playlist_id == 'thumbsup':
                 """ Try to fetch all access thumbs up songs """
-                for track in self.getApi().get_thumbs_up_songs():
+                for track in self.getApi().get_promoted_songs():
                     songs.append(self._convertAATrack(track))
         else:
             if forceRenew:
@@ -41,10 +41,6 @@ class GoogleMusicApi():
         return songs
 
     def getPlaylistsByType(self, playlist_type, forceRenew=False):
-        if playlist_type == 'auto':
-            return [['thumbsup','Highly Rated'],['lastadded','Last Added'],
-                    ['freepurchased','Free and Purchased'],['mostplayed','Most Played']]
-
         if forceRenew:
             self.updatePlaylistSongs()
 
@@ -54,16 +50,8 @@ class GoogleMusicApi():
         return storage.getSong(song_id)
 
     def loadLibrary(self):
-        #gen = self.gmusicapi.get_all_songs(incremental=True)
-        #for chunk in gen:
-        #    for song in chunk:
-                #print song
-        #        api_songs.append(song)
-        #    break
-        #api_songs = [song for chunk in api_songs for song in chunk]
         api_songs = self.getApi().get_all_songs()
         utils.log("Library Size: "+repr(len(api_songs)))
-        #utils.log("First Song: "+repr(api_songs[0]))
         storage.storeApiSongs(api_songs, 'all_songs')
 
         self.updatePlaylistSongs()
@@ -73,7 +61,6 @@ class GoogleMusicApi():
 
     def getSongStreamUrl(self, song_id):
         stream_url = self.getLogin().getStreamUrl(song_id)
-        #storage.updateSongStreamUrl(song_id, stream_url)
         return stream_url
 
     def incrementSongPlayCount(self, song_id):
@@ -184,9 +171,32 @@ class GoogleMusicApi():
         entry_id = storage.delFromPlaylist(playlist_id, song_id)
         self.getApi().remove_entries_from_playlist(entry_id)
 
+    def getTopcharts(self, content_type='tracks'):
+        content = self.getApi().get_top_chart()
+        if content_type == 'tracks':
+            print repr(content['tracks'])
+            songs = []
+            for item in content['tracks']:
+                songs.append(self._convertAATrack(item))
+            return songs
+        if content_type == 'albums':
+            albums = []
+            for item in content['albums']:
+                albums.append([item['name'],item['artist'],item.get('albumArtRef',''),item['albumId']])
+            return albums
+
+    def getNewreleases(self):
+        albums = []
+        content = self.getApi().get_new_releases()
+        for item in content:
+            print repr(item)
+            album = item['album']
+            albums.append([album['name'],album['artist'],album.get('albumArtRef',''),album['albumId']])
+        return albums
+
     def _convertAATrack(self, aaTrack):
         return [aaTrack.get('id') or aaTrack['storeId'],'',0,0,0,'',0,aaTrack.get('album'),
-                aaTrack['artist']+" - "+aaTrack['title'],aaTrack['albumArtist'],0,
+                aaTrack['title'],aaTrack['albumArtist'],0,
                 aaTrack['trackNumber'],0,0,'',aaTrack.get('playCount', 0),0,aaTrack['title'],
                 aaTrack['artist'],'',0,int(aaTrack['durationMillis'])/1000,
                 aaTrack['albumArtRef'][0]['url'] if aaTrack.get('albumArtRef') else utils.addon.getAddonInfo('icon'),

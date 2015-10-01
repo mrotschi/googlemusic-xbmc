@@ -22,8 +22,9 @@ def paramsToDict(parameters):
         paramPairs = parameters[1:].split('&')
         for paramsPair in paramPairs:
             paramSplits = paramsPair.split('=')
-            if len(paramSplits) == 2:
+            try:
                 paramDict[paramSplits[0]] = paramSplits[1]
+            except: pass
     return paramDict
 
 def createItem(title, thumb):
@@ -40,11 +41,23 @@ def setResolvedUrl(listItem):
     xbmcplugin.setResolvedUrl(handle=handle, succeeded=True, listitem=listItem)
 
 def setDirectory(listItems, content, sortMethods):
-    if handle < 0: return
     xbmcplugin.addDirectoryItems(handle, listItems)
-    xbmcplugin.setContent(handle, content)
+    if handle > 0:
+        xbmcplugin.setContent(handle, content)
 
     for sorts in sortMethods:
         xbmcplugin.addSortMethod(int(sys.argv[1]), sorts)
 
     xbmcplugin.endOfDirectory(handle, succeeded=True)
+
+def tryEncode(text, encoding='utf-8'):
+    try:
+        if sys.platform.startswith('linux'):
+           return text.decode(encoding).encode('latin1')
+        return unicode(text.decode(encoding))
+    except: pass
+    try:
+        return text.encode(encoding, errors='ignore')
+    except:
+        log(" ENCODING FAIL!!! "+encoding+" "+repr(text))
+    return repr(text)
