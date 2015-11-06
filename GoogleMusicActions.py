@@ -11,6 +11,8 @@ class GoogleMusicActions():
     def executeAction(self, action, params):
         if (action == "play_all"):
             self.playAll(params)
+        elif (action == "add_to_queue"):
+            self.addToQueue(params)
         elif (action == "play_all_yt"):
             titles = [song[23] for song in self._getSongs(params)]
             self.playYoutube(titles)
@@ -51,6 +53,8 @@ class GoogleMusicActions():
             else:
                 self.notify(self.lang(30108))
                 utils.addon.openSettings()
+        elif (action == "export_playlist"):
+            self.exportPlaylist(params.get('title'), params.get('playlist_id'))
         elif (action == "start_radio"):
             keyboard = xbmc.Keyboard(self.api.getSong(params["song_id"])[8], self.lang(30402))
             keyboard.doModal()
@@ -87,6 +91,15 @@ class GoogleMusicActions():
             playlist.shuffle()
 
         xbmc.executebuiltin('playlist.playoffset(music , 0)')
+
+    def addToQueue(self, params={}):
+        songs = self._getSongs(params)
+
+        playlist = xbmc.PlayList(xbmc.PLAYLIST_MUSIC)
+
+        for song in songs:
+            playlist.add(self.song_url % (song[0], song[8], song[18], song[22]), utils.createItem(song[23], song[22]))
+
 
     def playYoutube(self, titles):
         #print repr(titles)
@@ -131,6 +144,18 @@ class GoogleMusicActions():
             if line.startswith('</favourites>'):
                 print fav
             print line,
+
+    def exportPlaylist(self, title, playlist_id):
+        utils.log("Loading playlist: " + playlist_id)
+        songs = self.api.getPlaylistSongs(playlist_id)
+        path = xbmc.makeLegalFilename(os.path.join(xbmc.translatePath("special://profile/playlists/music"), title+".m3u"))
+        utils.log("PATH: "+path)
+        with open(path, "w") as m3u:
+            m3u.write("#EXTM3U\n")
+            for song in songs:
+                m3u.write("\n")
+                m3u.write("#EXTINF:%s, %s - %s\n" % (song[21],song[18],song[8]))
+                m3u.write("plugin://plugin.audio.googlemusic.exp/?action=play_song&song_id=%s\n" % song[0])
 
     def exportLibrary(self, path):
         songs = self.api.getPlaylistSongs('all_songs')
